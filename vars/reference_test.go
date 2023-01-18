@@ -10,32 +10,32 @@ var _ = Describe("Reference", func() {
 	Describe("String", func() {
 		for _, tt := range []struct {
 			desc   string
-			ref    vars.Reference
+			ref    vars.FieldReference
 			result string
 		}{
 			{
 				desc:   "path",
-				ref:    vars.Reference{Path: "hello"},
+				ref:    vars.NewFieldReferenceWithoutSource("hello", nil),
 				result: "hello",
 			},
 			{
 				desc:   "path with fields",
-				ref:    vars.Reference{Path: "hello", Fields: []string{"a", "b"}},
+				ref:    vars.NewFieldReferenceWithoutSource("hello", []string{"a", "b"}),
 				result: "hello.a.b",
 			},
 			{
 				desc:   "segments contain special chars",
-				ref:    vars.Reference{Path: "hello.world", Fields: []string{"a.b", "foo:bar"}},
+				ref:    vars.NewFieldReferenceWithoutSource("hello.world", []string{"a.b", "foo:bar"}),
 				result: `"hello.world"."a.b"."foo:bar"`,
 			},
 			{
 				desc:   "segments contain special chars",
-				ref:    vars.Reference{Path: "hello.world", Fields: []string{"a", "foo:bar", "other field", "another/field"}},
+				ref:    vars.NewFieldReferenceWithoutSource("hello.world", []string{"a", "foo:bar", "other field", "another/field"}),
 				result: `"hello.world".a."foo:bar"."other field"."another/field"`,
 			},
 			{
 				desc:   "var source",
-				ref:    vars.Reference{Source: "source", Path: "hello"},
+				ref:    vars.NewFieldReference("source", "hello", nil),
 				result: "source:hello",
 			},
 		} {
@@ -51,38 +51,38 @@ var _ = Describe("Reference", func() {
 		for _, tt := range []struct {
 			desc string
 			raw  string
-			ref  vars.Reference
+			ref  vars.FieldReference
 			err  string
 		}{
 			{
 				desc: "path",
 				raw:  "hello",
-				ref:  vars.Reference{Path: "hello", Fields: []string{}},
+				ref:  vars.NewFieldReferenceWithoutSource("hello", []string{}),
 			},
 			{
 				desc: "path with fields",
 				raw:  "hello.a.b",
-				ref:  vars.Reference{Path: "hello", Fields: []string{"a", "b"}},
+				ref:  vars.NewFieldReferenceWithoutSource("hello", []string{"a", "b"}),
 			},
 			{
 				desc: "segments contain special chars",
 				raw:  `"hello.world"."a.b"."foo:bar"`,
-				ref:  vars.Reference{Path: "hello.world", Fields: []string{"a.b", "foo:bar"}},
+				ref:  vars.NewFieldReferenceWithoutSource("hello.world", []string{"a.b", "foo:bar"}),
 			},
 			{
 				desc: "segments contain special chars",
 				raw:  `"hello.world".a."foo:bar"`,
-				ref:  vars.Reference{Path: "hello.world", Fields: []string{"a", "foo:bar"}},
+				ref:  vars.NewFieldReferenceWithoutSource("hello.world", []string{"a", "foo:bar"}),
 			},
 			{
 				desc: "var source",
 				raw:  "source:hello",
-				ref:  vars.Reference{Source: "source", Path: "hello", Fields: []string{}},
+				ref:  vars.NewFieldReference("source", "hello", []string{}),
 			},
 			{
 				desc: "path with colon and no var source",
 				raw:  `"my:path"."field.1"."field.2"`,
-				ref:  vars.Reference{Path: "my:path", Fields: []string{"field.1", "field.2"}},
+				ref:  vars.NewFieldReferenceWithoutSource("my:path", []string{"field.1", "field.2"}),
 			},
 			{
 				desc: "quoted var source",
@@ -107,12 +107,12 @@ var _ = Describe("Reference", func() {
 			{
 				desc: "trims spaces in path segments",
 				raw:  `hello .world `,
-				ref:  vars.Reference{Path: "hello", Fields: []string{"world"}},
+				ref:  vars.NewFieldReferenceWithoutSource("hello", []string{"world"}),
 			},
 			{
 				desc: "does not trim spaces in quoted segments",
 				raw:  `" hello "."world "`,
-				ref:  vars.Reference{Path: " hello ", Fields: []string{"world "}},
+				ref:  vars.NewFieldReferenceWithoutSource(" hello ", []string{"world "}),
 			},
 		} {
 			tt := tt

@@ -40,7 +40,7 @@ func (t Template) Evaluate(vars Variables, opts EvaluateOpts) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	obj, err = t.interpolateRoot(obj, newVarsTracker(vars, opts.ExpectAllKeys, opts.ExpectAllVarsUsed))
+	obj, err = t.interpolateRoot(obj, NewVarsTracker(vars, opts.ExpectAllKeys, opts.ExpectAllVarsUsed))
 	if err != nil {
 		return []byte{}, err
 	}
@@ -53,7 +53,7 @@ func (t Template) Evaluate(vars Variables, opts EvaluateOpts) ([]byte, error) {
 	return bytes, nil
 }
 
-func (t Template) interpolateRoot(obj interface{}, tracker varsTracker) (interface{}, error) {
+func (t Template) interpolateRoot(obj interface{}, tracker VarsTracker) (interface{}, error) {
 	var err error
 	obj, err = interpolator{}.Interpolate(obj, tracker)
 	if err != nil {
@@ -70,7 +70,7 @@ var (
 	interpolationAnchoredRegex = regexp.MustCompile("\\A" + interpolationRegex.String() + "\\z")
 )
 
-func (i interpolator) Interpolate(node interface{}, tracker varsTracker) (interface{}, error) {
+func (i interpolator) Interpolate(node interface{}, tracker VarsTracker) (interface{}, error) {
 	switch typedNode := node.(type) {
 	case map[interface{}]interface{}:
 		for k, v := range typedNode {
@@ -99,7 +99,12 @@ func (i interpolator) Interpolate(node interface{}, tracker varsTracker) (interf
 
 	case string:
 		for _, name := range i.extractVarNames(typedNode) {
-			foundVal, found, err := tracker.Get(name)
+			varRef, err := ParseReference(name)
+			if err != nil {
+				return nil, err
+			}
+
+			foundVal, found, err := tracker.Get(varRef)
 			if err != nil {
 				return nil, err
 			}
@@ -139,51 +144,60 @@ func (i interpolator) extractVarNames(value string) []string {
 	return names
 }
 
-type varsTracker struct {
+type VarsTracker struct {
 	vars Variables
 
 	expectAllFound bool
 	expectAllUsed  bool
 
-	missing    map[string]struct{}
-	visited    map[string]struct{}
-	visitedAll map[string]struct{} // track all var names that were accessed
+	missing map[string]struct{}
+	visited map[string]visitedVar
 }
 
-func newVarsTracker(vars Variables, expectAllFound, expectAllUsed bool) varsTracker {
-	return varsTracker{
+type visitedVar struct {
+	value interface{}
+	found bool
+	err   error
+}
+
+func NewVarsTracker(vars Variables, expectAllFound, expectAllUsed bool) VarsTracker {
+	return VarsTracker{
 		vars:           vars,
 		expectAllFound: expectAllFound,
 		expectAllUsed:  expectAllUsed,
-		missing:        map[string]struct{}{},
-		visited:        map[string]struct{}{},
-		visitedAll:     map[string]struct{}{},
+
+		missing: map[string]struct{}{},
+		visited: map[string]visitedVar{},
 	}
 }
 
-// Get value of a var. Name can be the following formats: 1) 'foo', where foo
-// is var name; 2) 'foo:bar', where foo is var source name, and bar is var name;
-// 3) '.:foo', where . means a local var, foo is var name.
-func (t varsTracker) Get(varName string) (interface{}, bool, error) {
-	varRef, err := ParseReference(varName)
-	if err != nil {
-		return nil, false, err
+// Gets the value of a field in a var
+func (t VarsTracker) Get(varRef FieldReference) (interface{}, bool, error) {
+	identifier := varRef.Reference.String()
+	if _, ok := t.visited[identifier]; !ok {
+		value, found, err := t.vars.Get(varRef.Reference)
+		t.visited[identifier] = visitedVar{value, found, err}
 	}
 
-	t.visitedAll[identifier(varRef)] = struct{}{}
-
-	val, found, err := t.vars.Get(varRef)
-	if !found || err != nil {
+	visited := t.visited[identifier]
+	if !visited.found || visited.err != nil {
 		t.missing[varRef.String()] = struct{}{}
-		return val, found, err
+		return nil, visited.found, visited.err
+	}
+
+	val, err := Traverse(visited.value, varRef)
+	if err != nil {
+		t.missing[varRef.String()] = struct{}{}
+		return nil, false, err
 	}
 
 	return val, true, err
 }
 
-func (t varsTracker) Error() error {
+func (t VarsTracker) Error() error {
 	missingErr := t.MissingError()
 	extraErr := t.ExtraError()
+
 	if missingErr != nil && extraErr != nil {
 		return multierror.Append(missingErr, extraErr)
 	} else if missingErr != nil {
@@ -192,10 +206,10 @@ func (t varsTracker) Error() error {
 		return extraErr
 	}
 
-	return nil
+	return extraErr
 }
 
-func (t varsTracker) MissingError() error {
+func (t VarsTracker) MissingError() error {
 	if !t.expectAllFound || len(t.missing) == 0 {
 		return nil
 	}
@@ -203,7 +217,7 @@ func (t varsTracker) MissingError() error {
 	return UndefinedVarsError{Vars: names(t.missing)}
 }
 
-func (t varsTracker) ExtraError() error {
+func (t VarsTracker) ExtraError() error {
 	if !t.expectAllUsed {
 		return nil
 	}
@@ -216,8 +230,8 @@ func (t varsTracker) ExtraError() error {
 	unusedNames := map[string]struct{}{}
 
 	for _, ref := range allRefs {
-		id := identifier(ref)
-		if _, found := t.visitedAll[id]; !found {
+		id := ref.String()
+		if _, found := t.visited[id]; !found {
 			unusedNames[id] = struct{}{}
 		}
 	}
@@ -238,14 +252,4 @@ func names(mapWithNames map[string]struct{}) []string {
 	sort.Strings(names)
 
 	return names
-}
-
-func identifier(varRef Reference) string {
-	id := varRef.Path
-
-	if varRef.Source != "" {
-		id = fmt.Sprintf("%s:%s", varRef.Source, id)
-	}
-
-	return id
 }

@@ -45,9 +45,9 @@ var _ = Describe("YAML Template With Params", func() {
 
 		It("resolves all variables successfully", func() {
 			variables := []flaghelpers.VariablePairFlag{
-				{Ref: vars.Reference{Path: "param1"}, Value: "value1"},
-				{Ref: vars.Reference{Path: "param2"}, Value: "value2"},
-				{Ref: vars.Reference{Path: "param3"}, Value: "value3"},
+				{Ref: vars.NewFieldReferenceWithoutSource("param1", nil), Value: "value1"},
+				{Ref: vars.NewFieldReferenceWithoutSource("param2", nil), Value: "value2"},
+				{Ref: vars.NewFieldReferenceWithoutSource("param3", nil), Value: "value3"},
 			}
 			sampleYaml := templatehelpers.NewYamlTemplateWithParams(atc.PathFlag(filepath.Join(tmpdir, "sample.yml")), nil, variables, nil, nil)
 			result, err := sampleYaml.Evaluate(false, false)
@@ -62,8 +62,8 @@ var _ = Describe("YAML Template With Params", func() {
 
 		It("leave param uninterpolated if it's not provided", func() {
 			variables := []flaghelpers.VariablePairFlag{
-				{Ref: vars.Reference{Path: "param1"}, Value: "value1"},
-				{Ref: vars.Reference{Path: "param2"}, Value: "value2"},
+				{Ref: vars.NewFieldReferenceWithoutSource("param1", nil), Value: "value1"},
+				{Ref: vars.NewFieldReferenceWithoutSource("param2", nil), Value: "value2"},
 			}
 			sampleYaml := templatehelpers.NewYamlTemplateWithParams(atc.PathFlag(filepath.Join(tmpdir, "sample.yml")), nil, variables, nil, nil)
 			result, err := sampleYaml.Evaluate(false, false)

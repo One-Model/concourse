@@ -34,6 +34,7 @@ func (b *buildVariables) Get(ref vars.Reference) (interface{}, bool, error) {
 		b.lock.RLock()
 		val, found, err := b.localVars.Get(ref.WithoutSource())
 		b.lock.RUnlock()
+
 		if found || err != nil {
 			return val, found, err
 		}

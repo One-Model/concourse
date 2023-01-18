@@ -112,6 +112,7 @@ func InstanceVarsFromQueryParams(q url.Values) (InstanceVars, error) {
 		if k != "vars" && !strings.HasPrefix(k, "vars.") {
 			continue
 		}
+
 		var kvp vars.KVPair
 		var err error
 		kvp.Ref, err = vars.ParseReference(k)
@@ -121,6 +122,7 @@ func InstanceVarsFromQueryParams(q url.Values) (InstanceVars, error) {
 		if err = json.Unmarshal([]byte(q.Get(k)), &kvp.Value); err != nil {
 			return nil, err
 		}
+
 		kvPairs = append(kvPairs, kvp)
 	}
 	if len(kvPairs) == 0 {

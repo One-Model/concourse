@@ -44,50 +44,6 @@ var _ = Describe("StaticVariables", func() {
 			Expect(found).To(BeFalse())
 			Expect(err).ToNot(HaveOccurred())
 		})
-
-		It("follows fields", func() {
-			v := StaticVariables{
-				"a": map[string]interface{}{
-					"subkey1": map[interface{}]interface{}{
-						"subkey2": "foo",
-					},
-				}}
-
-			val, found, err := v.Get(Reference{Path: "a", Fields: []string{"subkey1", "subkey2"}})
-			Expect(val).To(Equal("foo"))
-			Expect(found).To(BeTrue())
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		Context("when fields don't exist", func() {
-			It("errors with a MissingFieldError error", func() {
-				v := StaticVariables{
-					"a": map[string]interface{}{
-						"subkey1": map[interface{}]interface{}{
-							"subkey2": "foo",
-						},
-					}}
-
-				_, _, err := v.Get(Reference{Path: "a", Fields: []string{"subkey1", "bad_key"}})
-				_, ok := err.(MissingFieldError)
-				Expect(ok).To(BeTrue(), "unexpected error type %T", err)
-			})
-		})
-
-		Context("when fields cannot be recursed", func() {
-			It("errors with an InvalidFieldError error", func() {
-				v := StaticVariables{
-					"a": map[string]interface{}{
-						"subkey1": map[interface{}]interface{}{
-							"subkey2": "foo",
-						},
-					}}
-
-				_, _, err := v.Get(Reference{Path: "a", Fields: []string{"subkey1", "subkey2", "cant_go_deeper"}})
-				_, ok := err.(InvalidFieldError)
-				Expect(ok).To(BeTrue(), "unexpected error type %T", err)
-			})
-		})
 	})
 
 	Describe("List", func() {
@@ -118,10 +74,10 @@ var _ = Describe("StaticVariables", func() {
 					"foo":   map[string]interface{}{"bar": "baz", "abc": map[interface{}]interface{}{"def": "ghi", "jkl": "mno"}},
 				},
 				kvPairs: KVPairs{
-					{Ref: Reference{Path: "hello"}, Value: "world"},
-					{Ref: Reference{Path: "foo", Fields: []string{"bar"}}, Value: "baz"},
-					{Ref: Reference{Path: "foo", Fields: []string{"abc", "def"}}, Value: "ghi"},
-					{Ref: Reference{Path: "foo", Fields: []string{"abc", "jkl"}}, Value: "mno"},
+					{Ref: NewFieldReferenceWithoutSource("hello", nil), Value: "world"},
+					{Ref: NewFieldReferenceWithoutSource("foo", []string{"bar"}), Value: "baz"},
+					{Ref: NewFieldReferenceWithoutSource("foo", []string{"abc", "def"}), Value: "ghi"},
+					{Ref: NewFieldReferenceWithoutSource("foo", []string{"abc", "jkl"}), Value: "mno"},
 				},
 			},
 		} {
@@ -141,8 +97,8 @@ var _ = Describe("StaticVariables", func() {
 			{
 				desc: "merges flat elements into map",
 				kvPairs: KVPairs{
-					{Ref: Reference{Path: "hello"}, Value: "world"},
-					{Ref: Reference{Path: "foo"}, Value: map[string]interface{}{"bar": "baz"}},
+					{Ref: NewFieldReferenceWithoutSource("hello", nil), Value: "world"},
+					{Ref: NewFieldReferenceWithoutSource("foo", nil), Value: map[string]interface{}{"bar": "baz"}},
 				},
 				expanded: StaticVariables{
 					"hello": "world",
@@ -152,9 +108,9 @@ var _ = Describe("StaticVariables", func() {
 			{
 				desc: "merges recurses through fields",
 				kvPairs: KVPairs{
-					{Ref: Reference{Path: "hello", Fields: []string{"a", "b"}}, Value: "world"},
-					{Ref: Reference{Path: "foo"}, Value: map[string]interface{}{"bar": map[string]interface{}{"abc": "def"}}},
-					{Ref: Reference{Path: "foo", Fields: []string{"bar", "ghi"}}, Value: "jkl"},
+					{Ref: NewFieldReferenceWithoutSource("hello", []string{"a", "b"}), Value: "world"},
+					{Ref: NewFieldReferenceWithoutSource("foo", nil), Value: map[string]interface{}{"bar": map[string]interface{}{"abc": "def"}}},
+					{Ref: NewFieldReferenceWithoutSource("foo", []string{"bar", "ghi"}), Value: "jkl"},
 				},
 				expanded: StaticVariables{
 					"hello": map[string]interface{}{"a": map[string]interface{}{"b": "world"}},
@@ -164,8 +120,8 @@ var _ = Describe("StaticVariables", func() {
 			{
 				desc: "overwrites non-map nodes",
 				kvPairs: KVPairs{
-					{Ref: Reference{Path: "foo"}, Value: map[string]interface{}{"bar": "baz"}},
-					{Ref: Reference{Path: "foo", Fields: []string{"bar", "ghi"}}, Value: "jkl"},
+					{Ref: NewFieldReferenceWithoutSource("foo", nil), Value: map[string]interface{}{"bar": "baz"}},
+					{Ref: NewFieldReferenceWithoutSource("foo", []string{"bar", "ghi"}), Value: "jkl"},
 				},
 				expanded: StaticVariables{
 					"foo": map[string]interface{}{"bar": map[string]interface{}{"ghi": "jkl"}},
@@ -174,8 +130,8 @@ var _ = Describe("StaticVariables", func() {
 			{
 				desc: "overwrites full nodes",
 				kvPairs: KVPairs{
-					{Ref: Reference{Path: "foo"}, Value: map[string]interface{}{"bar": "baz"}},
-					{Ref: Reference{Path: "foo"}, Value: "jkl"},
+					{Ref: NewFieldReferenceWithoutSource("foo", nil), Value: map[string]interface{}{"bar": "baz"}},
+					{Ref: NewFieldReferenceWithoutSource("foo", nil), Value: "jkl"},
 				},
 				expanded: StaticVariables{
 					"foo": "jkl",

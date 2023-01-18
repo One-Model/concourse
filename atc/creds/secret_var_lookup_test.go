@@ -17,30 +17,26 @@ var _ = Describe("VariableLookupFromSecrets", func() {
 	BeforeEach(func() {
 		secrets := dummy.NewSecretsFactory([]dummy.VarFlag{
 			{
-				Name: "a",
-				Value: map[string]interface{}{
-					"b": map[interface{}]interface{}{
-						"c": "foo",
-					},
-				},
+				Name:  "a",
+				Value: "foo",
 			},
 		}).NewSecrets()
 		variables = creds.NewVariables(secrets, "team", "pipeline", true)
 	})
 
 	Describe("Get", func() {
-		It("traverses fields", func() {
-			result, found, err := variables.Get(vars.Reference{Path: "a", Fields: []string{"b", "c"}})
+		It("retrieves a static var", func() {
+			result, found, err := variables.Get(vars.Reference{Path: "a"})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
 
 			Expect(result).To(Equal("foo"))
 		})
 
-		Context("when a field is missing", func() {
+		Context("when a path is missing", func() {
 			It("errors", func() {
-				_, _, err := variables.Get(vars.Reference{Path: "a", Fields: []string{"b", "d"}})
-				Expect(err).To(HaveOccurred())
+				_, found, _ := variables.Get(vars.Reference{Path: "b"})
+				Expect(found).To(BeFalse())
 			})
 		})
 	})

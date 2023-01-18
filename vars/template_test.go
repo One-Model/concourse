@@ -411,3 +411,96 @@ dup-key: ((key3))
 		Expect(err.Error()).To(ContainSubstring("fake-err"))
 	})
 })
+
+var _ = Describe("VarsTracker", func() {
+	It("follows fields", func() {
+		v := StaticVariables{
+			"a": map[string]interface{}{
+				"subkey1": map[interface{}]interface{}{
+					"subkey2": "foo",
+				},
+			}}
+
+		tracker := NewVarsTracker(v, true, true)
+		val, found, err := tracker.Get(NewFieldReferenceWithoutSource("a", []string{"subkey1", "subkey2"}))
+		Expect(val).To(Equal("foo"))
+		Expect(found).To(BeTrue())
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	Context("when fields don't exist", func() {
+		It("errors with a MissingFieldError error", func() {
+			v := StaticVariables{
+				"a": map[string]interface{}{
+					"subkey1": map[interface{}]interface{}{
+						"subkey2": "foo",
+					},
+				}}
+
+			tracker := NewVarsTracker(v, true, true)
+			_, _, err := tracker.Get(NewFieldReferenceWithoutSource("a", []string{"subkey1", "bad_key"}))
+			_, ok := err.(MissingFieldError)
+			Expect(ok).To(BeTrue(), "unexpected error type %T", err)
+		})
+	})
+
+	Context("when fields cannot be recursed", func() {
+		It("errors with an InvalidFieldError error", func() {
+			v := StaticVariables{
+				"a": map[string]interface{}{
+					"subkey1": map[interface{}]interface{}{
+						"subkey2": "foo",
+					},
+				}}
+
+			tracker := NewVarsTracker(v, true, true)
+			_, _, err := tracker.Get(NewFieldReferenceWithoutSource("a", []string{"subkey1", "subkey2", "cant_go_deeper"}))
+			_, ok := err.(InvalidFieldError)
+			Expect(ok).To(BeTrue(), "unexpected error type %T", err)
+		})
+	})
+
+	Context("when retrieving a var from the same path", func() {
+		It("re-uses the data returned", func() {
+			v := StaticVariables{
+				"a": map[string]interface{}{
+					"subkey1": "foo",
+				}}
+
+			tracker := NewVarsTracker(v, true, true)
+			val, found, err := tracker.Get(NewFieldReferenceWithoutSource("a", []string{"subkey1"}))
+			Expect(val).To(Equal("foo"))
+			Expect(found).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+
+			v["a"] = map[string]interface{}{
+				"subkey2": "bar",
+			}
+
+			_, _, err = tracker.Get(NewFieldReferenceWithoutSource("a", []string{"subkey2"}))
+			_, ok := err.(MissingFieldError)
+			Expect(ok).To(BeTrue(), "unexpected error type %T", err)
+
+			// Confirm that the `subkey1` still exists and that it has the previous value
+			val, found, err = tracker.Get(NewFieldReferenceWithoutSource("a", []string{"subkey1"}))
+			Expect(val).To(Equal("foo"))
+			Expect(found).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("remembers if data was missing", func() {
+			v := StaticVariables{}
+
+			tracker := NewVarsTracker(v, true, true)
+			_, found, _ := tracker.Get(NewFieldReferenceWithoutSource("a", nil))
+			Expect(found).To(BeFalse())
+
+			v["a"] = map[string]interface{}{
+				"subkey1": "foo",
+			}
+
+			_, found, _ = tracker.Get(NewFieldReferenceWithoutSource("a", nil))
+			Expect(found).To(BeFalse())
+		})
+	})
+})

@@ -37,7 +37,11 @@ func ParseOpaResult(bytesResult []byte, opaConfig OpaConfig) (opaResult, error) 
 	var messages []string
 
 	parts := strings.Split(opaConfig.ResultAllowedKey, ".")
-	v, found, err := results.Get(vars.Reference{Path: parts[0], Fields: parts[1:]})
+	varRef := vars.NewFieldReferenceWithoutSource(parts[0], parts[1:])
+	v, found, err := results.Get(varRef.Reference)
+	if found && err == nil {
+		v, err = vars.Traverse(v, varRef)
+	}
 	if err != nil {
 		return opaResult{}, fmt.Errorf("allowed: %w", err)
 	}
@@ -49,7 +53,11 @@ func ParseOpaResult(bytesResult []byte, opaConfig OpaConfig) (opaResult, error) 
 	}
 
 	parts = strings.Split(opaConfig.ResultShouldBlockKey, ".")
-	v, found, err = results.Get(vars.Reference{Path: parts[0], Fields: parts[1:]})
+	varRef = vars.NewFieldReferenceWithoutSource(parts[0], parts[1:])
+	v, found, err = results.Get(varRef.Reference)
+	if found && err == nil {
+		v, err = vars.Traverse(v, varRef)
+	}
 	if err != nil || !found {
 		shouldBlock = !allowed
 	} else if shouldBlock, ok = v.(bool); !ok {
@@ -57,7 +65,11 @@ func ParseOpaResult(bytesResult []byte, opaConfig OpaConfig) (opaResult, error) 
 	}
 
 	parts = strings.Split(opaConfig.ResultMessagesKey, ".")
-	v, found, err = results.Get(vars.Reference{Path: parts[0], Fields: parts[1:]})
+	varRef = vars.NewFieldReferenceWithoutSource(parts[0], parts[1:])
+	v, found, err = results.Get(varRef.Reference)
+	if found && err == nil {
+		v, err = vars.Traverse(v, varRef)
+	}
 	if err != nil || !found {
 		messages = []string{}
 	} else if arr, ok := v.([]interface{}); v != nil && !ok {

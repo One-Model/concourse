@@ -32,28 +32,21 @@ func (t *Tracker) Track(varRef Reference, val interface{}) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	t.track(varRef, val)
+	t.track(FieldReference{Reference: varRef, Fields: nil}, val)
 }
 
-func (t *Tracker) track(varRef Reference, val interface{}) {
+func (t *Tracker) track(varRef FieldReference, val interface{}) {
 	switch v := val.(type) {
 	case map[interface{}]interface{}:
 		for kk, vv := range v {
-			t.track(Reference{
-				Path:   varRef.Path,
-				Fields: append(varRef.Fields, kk.(string)),
-			}, vv)
+			t.track(NewFieldReferenceWithoutSource(varRef.Path, append(varRef.Fields, kk.(string))), vv)
 		}
 	case map[string]interface{}:
 		for kk, vv := range v {
-			t.track(Reference{
-				Path:   varRef.Path,
-				Fields: append(varRef.Fields, kk),
-			}, vv)
+			t.track(NewFieldReferenceWithoutSource(varRef.Path, append(varRef.Fields, kk)), vv)
 		}
 	case string:
 		paths := append([]string{varRef.Path}, varRef.Fields...)
-
 		t.interpolatedCreds[strings.Join(paths, ".")] = v
 	default:
 		// Do nothing

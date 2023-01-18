@@ -10,14 +10,7 @@ func (v StaticVariables) Get(ref Reference) (interface{}, bool, error) {
 	}
 
 	val, found := v[ref.Path]
-	if !found {
-		return nil, false, nil
-	}
-	val, err := Traverse(val, ref.String(), ref.Fields)
-	if err != nil {
-		return nil, false, err
-	}
-	return val, true, nil
+	return val, found, nil
 }
 
 func (v StaticVariables) List() ([]Reference, error) {
@@ -30,43 +23,12 @@ func (v StaticVariables) List() ([]Reference, error) {
 	return refs, nil
 }
 
-func Traverse(val interface{}, name string, fields []string) (interface{}, error) {
-	for _, seg := range fields {
-		switch v := val.(type) {
-		case map[interface{}]interface{}:
-			var found bool
-			val, found = v[seg]
-			if !found {
-				return nil, MissingFieldError{
-					Name:  name,
-					Field: seg,
-				}
-			}
-		case map[string]interface{}:
-			var found bool
-			val, found = v[seg]
-			if !found {
-				return nil, MissingFieldError{
-					Name:  name,
-					Field: seg,
-				}
-			}
-		default:
-			return nil, InvalidFieldError{
-				Name:  name,
-				Field: seg,
-				Value: val,
-			}
-		}
-	}
-	return val, nil
-}
-
 func (v StaticVariables) Flatten() KVPairs {
-	var flat KVPairs
+	flat := make(KVPairs, 0, len(v))
 	for k, vv := range v {
 		flat = append(flat, flatten(k, nil, vv)...)
 	}
+
 	return flat
 }
 
@@ -78,18 +40,17 @@ func flatten(path string, fields []string, value interface{}) KVPairs {
 		for k, v := range node {
 			flat = append(flat, flatten(path, append(fields, k), v)...)
 		}
+
 	case map[interface{}]interface{}:
 		for k, v := range node {
 			if str, ok := k.(string); ok {
 				flat = append(flat, flatten(path, append(fields, str), v)...)
 			}
 		}
+
 	default:
 		flat = KVPairs{{
-			Ref: Reference{
-				Path:   path,
-				Fields: fields,
-			},
+			Ref:   NewFieldReferenceWithoutSource(path, fields),
 			Value: value,
 		}}
 	}
@@ -98,7 +59,7 @@ func flatten(path string, fields []string, value interface{}) KVPairs {
 }
 
 type KVPair struct {
-	Ref   Reference
+	Ref   FieldReference
 	Value interface{}
 }
 
@@ -109,6 +70,7 @@ func (p KVPairs) Expand() StaticVariables {
 	for _, pair := range p {
 		upsert(out, pair.Ref.Path, pair.Ref.Fields, pair.Value)
 	}
+
 	return out
 }
 
@@ -118,15 +80,18 @@ func upsert(out map[string]interface{}, path string, fields []string, value inte
 		out[path] = constructValue(fields, value)
 		return
 	}
+
 	nodeMap, ok := node.(map[string]interface{})
 	if !ok {
 		out[path] = constructValue(fields, value)
 		return
 	}
+
 	if len(fields) == 0 {
 		out[path] = value
 		return
 	}
+
 	upsert(nodeMap, fields[0], fields[1:], value)
 }
 
@@ -134,5 +99,6 @@ func constructValue(fields []string, value interface{}) interface{} {
 	if len(fields) == 0 {
 		return value
 	}
+
 	return constructValue(fields[:len(fields)-1], map[string]interface{}{fields[len(fields)-1]: value})
 }

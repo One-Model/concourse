@@ -176,14 +176,6 @@ var _ = Describe("RunState", func() {
 			Expect(val).To(Equal("v1"))
 		})
 
-		Context("when local var subfield does not exist", func() {
-			It("errors", func() {
-				state.AddLocalVar("foo", map[string]interface{}{"bar": "baz"}, false)
-				_, _, err := state.Get(vars.Reference{Source: ".", Path: "foo", Fields: []string{"missing"}})
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
 		Context("when redaction is enabled", func() {
 			BeforeEach(func() {
 				state = exec.NewRunState(stepper, credVars, true)

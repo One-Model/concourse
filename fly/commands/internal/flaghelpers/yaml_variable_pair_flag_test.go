@@ -28,19 +28,19 @@ var _ = Describe("YAMLVariablePair", func() {
 			{
 				desc: "basic",
 				flag: "key=value",
-				ref:  vars.Reference{Path: "key", Fields: []string{}},
+				ref:  vars.Reference{Path: "key"},
 				val:  "value",
 			},
 			{
 				desc: "unmarshals arbitrary yaml",
 				flag: `key={hello:world: [a, b, c]}`,
-				ref:  vars.Reference{Path: `key`, Fields: []string{}},
+				ref:  vars.Reference{Path: `key`},
 				val:  map[string]interface{}{"hello:world": []interface{}{"a", "b", "c"}},
 			},
 			{
 				desc: "unmarshals numbers as json.Number",
 				flag: `key={int: 1, float: 1.23}`,
-				ref:  vars.Reference{Path: `key`, Fields: []string{}},
+				ref:  vars.Reference{Path: `key`},
 				val:  map[string]interface{}{"int": json.Number("1"), "float": json.Number("1.23")},
 			},
 			{

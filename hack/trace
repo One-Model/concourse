@@ -16,16 +16,16 @@ usage() {
 while test $# -gt 0; do
    case "$1" in
         web)
-            container_name="concourse_web_1"
+            container_name="concourse-web-1"
             shift
             ;;
         worker)
-            container_name="concourse_worker_1"
+            container_name="concourse-worker-1"
             shift
             ;;
         --listen)
             shift
-            dlv_flags=" --headless=true --listen=:$1"
+            dlv_flags=" --headless=true --listen=:$1 --api-version 2 --accept-multiclient --continue"
             docker_flags+=" -p $1:$1"
             shift
             ;;
