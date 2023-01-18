@@ -26,7 +26,9 @@ type APIClient struct {
 	clientConfig ClientConfig
 	tlsConfig    TLSConfig
 	authConfig   AuthConfig
-	queryTimeout time.Duration
+
+	queryTimeout             time.Duration
+	eventualConsistencyDelay time.Duration
 
 	clientValue *atomic.Value
 
@@ -34,7 +36,7 @@ type APIClient struct {
 }
 
 // NewAPIClient with the associated authorization config and underlying vault client.
-func NewAPIClient(logger lager.Logger, apiURL string, clientConfig ClientConfig, tlsConfig TLSConfig, authConfig AuthConfig, namespace string, queryTimeout time.Duration) (*APIClient, error) {
+func NewAPIClient(logger lager.Logger, apiURL string, clientConfig ClientConfig, tlsConfig TLSConfig, authConfig AuthConfig, namespace string, queryTimeout, eventualConsistencyDelay time.Duration) (*APIClient, error) {
 	ac := &APIClient{
 		logger: logger,
 
@@ -43,7 +45,9 @@ func NewAPIClient(logger lager.Logger, apiURL string, clientConfig ClientConfig,
 		clientConfig: clientConfig,
 		tlsConfig:    tlsConfig,
 		authConfig:   authConfig,
-		queryTimeout: queryTimeout,
+
+		queryTimeout:             queryTimeout,
+		eventualConsistencyDelay: eventualConsistencyDelay,
 
 		clientValue: &atomic.Value{},
 
@@ -89,6 +93,10 @@ func (ac *APIClient) Read(path string) (*vaultapi.Secret, error) {
 			// Return a nil secret object if the secret was deleted, but not destroyed
 			return nil, nil
 		}
+	}
+
+	if ac.eventualConsistencyDelay > 0 {
+		time.Sleep(ac.eventualConsistencyDelay)
 	}
 
 	return secret, err

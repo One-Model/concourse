@@ -17,12 +17,13 @@ import (
 type VaultManager struct {
 	URL string `mapstructure:"url" long:"url" description:"Vault server address used to access secrets."`
 
-	PathPrefix      string        `mapstructure:"path_prefix" long:"path-prefix" default:"/concourse" description:"Path under which to namespace credential lookup."`
-	LookupTemplates []string      `mapstructure:"lookup_templates" long:"lookup-templates" default:"/{{.Team}}/{{.Pipeline}}/{{.Secret}}" default:"/{{.Team}}/{{.Secret}}" description:"Path templates for credential lookup"`
-	SharedPath      string        `mapstructure:"shared_path" long:"shared-path" description:"Path under which to lookup shared credentials."`
-	Namespace       string        `mapstructure:"namespace" long:"namespace"   description:"Vault namespace to use for authentication and secret lookup."`
-	LoginTimeout    time.Duration `mapstructure:"login_timeout" long:"login-timeout" default:"60s" description:"Timeout value for Vault login."`
-	QueryTimeout    time.Duration `mapstructure:"query_timeout" long:"query-timeout" default:"60s" description:"Timeout value for Vault query."`
+	PathPrefix               string        `mapstructure:"path_prefix" long:"path-prefix" default:"/concourse" description:"Path under which to namespace credential lookup."`
+	LookupTemplates          []string      `mapstructure:"lookup_templates" long:"lookup-templates" default:"/{{.Team}}/{{.Pipeline}}/{{.Secret}}" default:"/{{.Team}}/{{.Secret}}" description:"Path templates for credential lookup"`
+	SharedPath               string        `mapstructure:"shared_path" long:"shared-path" description:"Path under which to lookup shared credentials."`
+	Namespace                string        `mapstructure:"namespace" long:"namespace"   description:"Vault namespace to use for authentication and secret lookup."`
+	LoginTimeout             time.Duration `mapstructure:"login_timeout" long:"login-timeout" default:"60s" description:"Timeout value for Vault login."`
+	QueryTimeout             time.Duration `mapstructure:"query_timeout" long:"query-timeout" default:"60s" description:"Timeout value for Vault query."`
+	EventualConsistencyDelay time.Duration `mapstructure:"eventual_consistency_delay" long:"eventual-consistency-delay" default:"0s" description:"An artificial delay to introduce after a secret is read to try and avoid eventual consistency issues with the secret returned from Vault."`
 
 	ClientConfig ClientConfig `mapstructure:",squash"`
 	TLS          TLSConfig    `mapstructure:",squash"`
@@ -66,7 +67,7 @@ type AuthConfig struct {
 func (manager *VaultManager) Init(log lager.Logger) error {
 	var err error
 
-	manager.Client, err = NewAPIClient(log, manager.URL, manager.ClientConfig, manager.TLS, manager.Auth, manager.Namespace, manager.QueryTimeout)
+	manager.Client, err = NewAPIClient(log, manager.URL, manager.ClientConfig, manager.TLS, manager.Auth, manager.Namespace, manager.QueryTimeout, manager.EventualConsistencyDelay)
 	if err != nil {
 		return err
 	}
